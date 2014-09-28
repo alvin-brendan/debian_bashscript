@@ -1,0 +1,60 @@
+#!/bin/bash
+
+debian_bash_upgrade(){
+  debian_ver=$(cat /etc/issue | awk 'NR==1 {print $3}' | cut -b 1)
+if [ "$Debian_ver" -eq 7 ]; then
+echo -e "\n \t Debian 7 found, Installing Bash Packages \n"
+wget -q http://security.debian.org/debian-security/pool/updates/main/b/bash/bash_4.2+dfsg-0.1+deb7u3_amd64.deb
+dpkg -i bash_4.2+dfsg-0.1+deb7u3_amd64.deb
+fi
+}
+
+bash_compile_install(){
+  while true; do
+    read -p "Do you want to compile and install Bash?: " yn
+    case $yn in
+        [Yy]* )
+                 # Code from https://news.ycombinator.com/item?id=8364385
+                  echo -e "\n \t Compiling will take time, please wait"
+                  mkdir /root/bash_src
+                  cd /root/bash_src
+                  wget -q  http://ftp.gnu.org/gnu/bash/bash-4.3.tar.gz
+                  for i in $(seq -f "%03g" 0 25); do
+                    wget -q http://ftp.gnu.org/gnu/bash/bash-4.3-patches/bash43-$i;
+                  done
+                  tar zxf bash-4.3.tar.gz
+                  cd bash-4.3
+                  for i in $(seq -f "%03g" 0 25); do
+                    patch -p0 < ../bash43-$i;
+                  done
+                  ./configure --prefix=/usr --bindir=/bin --sbindir=/sbin --sysconfdir=/etc && make && make install
+                  cd ~
+                  rm -rf /root/bash_src
+                  break;;
+        [Nn]* ) check_bash_status; exit;;
+        * ) echo "Please answer yes or no.";;
+    esac
+  done
+}
+
+check_bash_status(){
+  bash_status=$(env x='() { :;}; echo vulnerable' bash -c "echo this is a test" | grep -c vulnerable)
+  if [ "$bash_status" -eq 0 ]; then
+    clear;
+    echo -e "\n \t Now, Bash is protected \n"
+    exit 0;
+  else
+    clear;
+    echo -e "\n \t Bash is NOT upgraded and vulnerability still exist \n"
+exit 2;
+  fi
+}
+
+os=$(cat /etc/issue | awk 'NR==1 {print $3}' | cut -b 1)
+if [ "$os" == Debian ]; then
+  debian_bash_upgrade
+else
+  echo -e "\n \t Unsupported OS, new Bash will may not support your existing OS vendor package \n"
+ # bash_compile_install
+fi
+check_bash_status
